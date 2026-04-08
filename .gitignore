@@ -17,6 +17,7 @@ __pycache__/
 # Subject data
 *.edf
 *.EDF
+BVAQ*.csv
 /beh/*.txt
 /beh/*.tsv
 /beh/pilot/
@@ -36,6 +37,7 @@ __pycache__/
 # Development-related
 notes.txt
 test*
+*.pdf
 
 # Other assets
 /Analysis/LabelSessions/
