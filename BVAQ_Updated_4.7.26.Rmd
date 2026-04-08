@@ -1,0 +1,195 @@
+---
+title: "Updated BVAQ Code"
+author: "Joshua Perez"
+date: "2026-04-08"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+
+# --- 0. Load packages -----------------------------------------------
+```{r}
+if (!requireNamespace("tidyverse", quietly=TRUE)) install.packages("tidyverse")
+if (!requireNamespace("janitor",   quietly=TRUE)) install.packages("janitor")
+library(tidyverse)
+library(janitor)
+```
+# --- 1. Read & clean the data --------------------------------------
+```{r}
+df <- read_csv("BVAQ.Data.04.07.2026.csv") %>%
+  clean_names() %>%
+  mutate(subject_id = str_trim(as.character(subject_id)))
+```
+
+```{r}
+rev_items <- c(
+  # Verbalizing group: Q6,16,26,31
+  6,16,26,31,
+  # Fantasizing group: Q2,12,27,37
+  2,12,27,37,
+  # Identifying group: Q3,13,28,38
+  3,13,28,38,
+  # Emotionalizing group: Q14,19,29,39
+  14,19,29,39,
+  # Analyzing group: Q10,20,30,40
+  10,20,30,40
+)
+
+rev_cols <- paste0("x", rev_items)
+
+df <- df %>%
+  mutate(across(all_of(rev_cols), ~ 6 - .))
+```
+
+```{r}
+df <- df %>%
+  mutate(subject_id = as.character(subject_id))
+
+bad_blank_ids <- df %>%
+  filter(is.na(subject_id) | subject_id == "")
+
+bad_nonnumeric_ids <- df %>%
+  filter(!is.na(subject_id), subject_id != "", !str_detect(subject_id, "^[0-9]+$"))
+
+bad_duplicate_ids <- df %>%
+  filter(!is.na(subject_id), subject_id != "") %>%
+  group_by(subject_id) %>%
+  filter(n() > 1) %>%
+  ungroup()
+
+bad_id_rows <- bind_rows(
+  bad_blank_ids %>% mutate(issue = "blank_or_missing_id"),
+  bad_nonnumeric_ids %>% mutate(issue = "non_numeric_id"),
+  bad_duplicate_ids %>% mutate(issue = "duplicate_id")
+) %>%
+  distinct()
+
+write_csv(bad_id_rows, "BVAQ_subject_id_errors.csv")
+bad_id_rows_long <- bad_id_rows %>%
+  pivot_longer(
+    cols = starts_with("x"),
+    names_to = "item",
+    values_to = "response"
+  ) %>%
+  arrange(subject_id, item)
+if (nrow(bad_id_rows) > 0) {
+  warning("Subject ID issues were found. See 'BVAQ_subject_id_errors.csv' for details.")
+}
+```
+
+```{r}
+df_summary <- df %>%
+  filter(!is.na(subject_id), subject_id != "", str_detect(subject_id, "^[0-9]+$")) %>%
+  transmute(
+    subject_id = as.character(subject_id),
+    Verbalizing = rowSums(
+      across(all_of(paste0("x", c(1, 6, 11, 16, 21, 26, 31, 36)))),
+      na.rm = TRUE
+    ),
+    Fantasizing = rowSums(
+      across(all_of(paste0("x", c(2, 7, 12, 17, 22, 27, 32, 37)))),
+      na.rm = TRUE
+    ),
+    Identifying = rowSums(
+      across(all_of(paste0("x", c(3, 8, 13, 18, 23, 28, 33, 38)))),
+      na.rm = TRUE
+    ),
+    Emotionalizing = rowSums(
+      across(all_of(paste0("x", c(4, 9, 14, 19, 24, 29, 34, 39)))),
+      na.rm = TRUE
+    ),
+    Analyzing = rowSums(
+      across(all_of(paste0("x", c(5, 10, 15, 20, 25, 30, 35, 40)))),
+      na.rm = TRUE
+    )
+  ) %>%
+  mutate(
+    BVAQ_total = Verbalizing + Fantasizing + Identifying + Emotionalizing + Analyzing,
+    subject_id_num = as.numeric(subject_id)
+  ) %>%
+  arrange(subject_id_num) %>%
+  select(-subject_id_num)
+```
+
+# --- 6. Write out & print -------------------------------------------
+```{r}
+write_csv(df_summary, "BVAQ_subscale_totals.csv")
+print(df_summary, n = Inf)
+write_csv(bad_id_rows_long, "BVAQ_subject_id_errors.csv")
+print(bad_id_rows, width = Inf)
+```
+
+```{r}
+hist(df_summary$BVAQ_total,
+     main = "Total BVAQ Scores",
+     xlab = "BVAQ Score",
+     col = "skyblue",
+     border = "black",
+     breaks=20)
+```
+```{r}
+hist(df_summary$Verbalizing,
+     main = "Verbalizing Scores",
+     xlab = "BVAQ Score",
+     col = "skyblue",
+     border = "black",
+     breaks=20)
+```
+```{r}
+hist(df_summary$Fantasizing,
+     main = "Fantasizing Scores",
+     xlab = "BVAQ Score",
+     col = "skyblue",
+     border = "black",
+     breaks=20)
+```
+```{r}
+hist(df_summary$Identifying,
+     main = "Identifying Scores",
+     xlab = "BVAQ Score",
+     col = "skyblue",
+     border = "black",
+     breaks=20)
+```
+```{r}
+hist(df_summary$Emotionalizing,
+     main = "Emotionalizing Scores",
+     xlab = "BVAQ Score",
+     col = "skyblue",
+     border = "black",
+     breaks=20)
+```
+
+```{r}
+hist(df_summary$Analyzing,
+     main = "Analyzing Scores",
+     xlab = "BVAQ Score",
+     col = "skyblue",
+     border = "black",
+     breaks=20)
+```
+
+```{r}
+subscale_data <- df_summary %>%
+  select(Verbalizing, Fantasizing, Identifying, Emotionalizing, Analyzing)
+
+cor_matrix <- cor(subscale_data, use = "pairwise.complete.obs", method = "pearson")
+
+cor_long <- as.data.frame(as.table(cor_matrix))
+
+ggplot(cor_long, aes(x = Var1, y = Var2, fill = Freq)) +
+  geom_tile() +
+  geom_text(aes(label = round(Freq, 2)), size = 4) +
+  scale_fill_gradient2(low = "blue", mid = "white", high = "red", midpoint = 0, limits = c(-1, 1)) +
+  labs(
+    title = "Correlation Heat Map of BVAQ Subscales",
+    x = "Subscale",
+    y = "Subscale",
+    fill = "r"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
