@@ -15,13 +15,13 @@ if (!requireNamespace("janitor",   quietly=TRUE)) install.packages("janitor")
 library(tidyverse)
 library(janitor)
 ```
-# --- 1. Read & clean the data --------------------------------------
+# --- 1. Read in the dataset and clean column names and clean subject IDs -------------
 ```{r}
 df <- read_csv("BVAQ.Data.04.07.2026.csv") %>%
   clean_names() %>%
   mutate(subject_id = str_trim(as.character(subject_id)))
 ```
-
+---#Step 2: Define reverse-coded items and apply reverse coding -----------------------
 ```{r}
 rev_items <- c(
   # Verbalizing group: Q6,16,26,31
@@ -41,7 +41,7 @@ rev_cols <- paste0("x", rev_items)
 df <- df %>%
   mutate(across(all_of(rev_cols), ~ 6 - .))
 ```
-
+---#Step 3: Identify Subject ID issues such as blank IDs, non-numeric, or duplicates---
 ```{r}
 df <- df %>%
   mutate(subject_id = as.character(subject_id))
@@ -77,12 +77,11 @@ if (nrow(bad_id_rows) > 0) {
   warning("Subject ID issues were found. See 'BVAQ_subject_id_errors.csv' for details.")
 }
 ```
-
+---#Step 4: Remove bad Subject IDs and compute subscale and total BVAQ scores----------
 ```{r}
 df_summary <- df %>%
-  filter(!is.na(subject_id), subject_id != "", str_detect(subject_id, "^[0-9]+$")) %>%
-  transmute(
-    subject_id = as.character(subject_id),
+  filter(!subject_id %in% bad_id_rows$subject_id)) %>%
+  mutate(
     Verbalizing = rowSums(
       across(all_of(paste0("x", c(1, 6, 11, 16, 21, 26, 31, 36)))),
       na.rm = TRUE
@@ -112,14 +111,14 @@ df_summary <- df %>%
   select(-subject_id_num)
 ```
 
-# --- 6. Write out & print -------------------------------------------
+# ---#Step 5: Save final datasets and print outputs------------------------------------
 ```{r}
 write_csv(df_summary, "BVAQ_subscale_totals.csv")
 print(df_summary, n = Inf)
 write_csv(bad_id_rows_long, "BVAQ_subject_id_errors.csv")
 print(bad_id_rows, width = Inf)
 ```
-
+---#Step 6: Plot Histogram of Total BVAQ scores----------------------------------------
 ```{r}
 hist(df_summary$BVAQ_total,
      main = "Total BVAQ Scores",
@@ -128,6 +127,7 @@ hist(df_summary$BVAQ_total,
      border = "black",
      breaks=20)
 ```
+---#Step 7: Plot Histogram of Verbalizing scores---------------------------------------
 ```{r}
 hist(df_summary$Verbalizing,
      main = "Verbalizing Scores",
@@ -136,6 +136,7 @@ hist(df_summary$Verbalizing,
      border = "black",
      breaks=20)
 ```
+---#Step 8: Plot Histogram of Fantasizing scores---------------------------------------
 ```{r}
 hist(df_summary$Fantasizing,
      main = "Fantasizing Scores",
@@ -144,6 +145,7 @@ hist(df_summary$Fantasizing,
      border = "black",
      breaks=20)
 ```
+---#Step 9: Plot Histogram of Identifying scores---------------------------------------
 ```{r}
 hist(df_summary$Identifying,
      main = "Identifying Scores",
@@ -152,6 +154,7 @@ hist(df_summary$Identifying,
      border = "black",
      breaks=20)
 ```
+---#Step 10: Plot Histogram of Emotionalizing scores-----------------------------------
 ```{r}
 hist(df_summary$Emotionalizing,
      main = "Emotionalizing Scores",
@@ -160,7 +163,7 @@ hist(df_summary$Emotionalizing,
      border = "black",
      breaks=20)
 ```
-
+---#Step 11: Plot Histogram of Analyzing scores----------------------------------------
 ```{r}
 hist(df_summary$Analyzing,
      main = "Analyzing Scores",
@@ -169,7 +172,7 @@ hist(df_summary$Analyzing,
      border = "black",
      breaks=20)
 ```
-
+---#Step 12: Compute correlations and generate correlation heat map--------------------
 ```{r}
 subscale_data <- df_summary %>%
   select(Verbalizing, Fantasizing, Identifying, Emotionalizing, Analyzing)
