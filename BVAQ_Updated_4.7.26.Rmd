@@ -108,7 +108,15 @@ df_summary <- df %>%
     subject_id_num = as.numeric(subject_id)
   ) %>%
   arrange(subject_id_num) %>%
-  select(-subject_id_num)
+  select(
+    subject_id,
+    Verbalizing,
+    Fantasizing,
+    Identifying,
+    Emotionalizing,
+    Analyzing,
+    BVAQ_total
+  )
 ```
 
 # ---#Step 5: Save final datasets and print outputs------------------------------------
