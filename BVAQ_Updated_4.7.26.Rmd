@@ -80,7 +80,7 @@ if (nrow(bad_id_rows) > 0) {
 ---#Step 4: Remove bad Subject IDs and compute subscale and total BVAQ scores----------
 ```{r}
 df_summary <- df %>%
-  filter(!subject_id %in% bad_id_rows$subject_id)) %>%
+  filter(!subject_id %in% bad_id_rows$subject_id) %>%
   mutate(
     Verbalizing = rowSums(
       across(all_of(paste0("x", c(1, 6, 11, 16, 21, 26, 31, 36)))),
